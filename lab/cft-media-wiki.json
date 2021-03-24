@@ -1,0 +1,1013 @@
+{
+   "AWSTemplateFormatVersion": "2010-09-09",
+   "Description": "Single EC2 Running Mediawiki on Nginx, RDS Backed, Behind LB ",
+   "Parameters": {
+      "Owner": {
+         "Type": "String",
+         "Default": "Enterprise Process Automation"
+      },
+      "DeleteAfter": {
+         "Type": "String",
+         "Default": "00/00/201x"
+      },
+      "VPC": {
+         "Type": "AWS::EC2::VPC::Id"
+      },
+      "SubnetId": {
+         "Type": "AWS::EC2::Subnet::Id"
+      },
+      "InternalAccessSecurityGroup": {
+         "Type": "AWS::EC2::SecurityGroup::Id"
+      },
+      "RemoteSecurityGroup": {
+         "Type": "AWS::EC2::SecurityGroup::Id"
+      },
+      "RdsSecurityGroup": {
+         "Type": "AWS::EC2::SecurityGroup::Id"
+      },
+      "EfsSecurityGroup": {
+         "Type": "AWS::EC2::SecurityGroup::Id"
+      },
+      "LbLanIp": {
+         "Type": "String",
+         "Description": "Load Balancer LAN IP for Reverse Proxy",
+         "Default": "10.0.0.1"
+      },
+      "HostedZoneId": {
+         "Type": "String",
+         "Description": "Route53 Hosted Zone ID (Z1234567890).",
+         "Default": "Z1234567890"
+      },
+      "RecordName": {
+         "Type": "String",
+         "Description": "DNS Alias Record Name (web01.example.com)",
+         "Default": "web01.example.com"
+      },
+      "EfsMountPoint": {
+         "Type": "String",
+         "Default": "/path/to/mount1"
+      },
+      "EfsFileSystemId": {
+         "Type": "String",
+         "Default": "fs-00000000"
+      },
+      "KeyPairName": {
+         "Type": "AWS::EC2::KeyPair::KeyName"
+      },
+      "InstanceType": {
+         "Type": "String",
+         "AllowedValues": [
+            "t2.nano",
+            "t2.micro",
+            "t2.small",
+            "t2.medium",
+           ],
+         "Default": "t2.small"
+      },
+      "DbHost": {
+         "Type": "String"
+      },
+      "DbName": {
+         "Type": "String"
+      },
+      "DbUser": {
+         "Type": "String"
+      },
+      "DbPassword": {
+         "Type": "String",
+         "NoEcho": "true",
+         "MinLength": "6",
+         "AllowedPattern": "[a-zA-Z0-9!?]*",
+         "ConstraintDescription": "Must only contain upper and lowercase letters, numbers and contain a minimum of 6 characters"
+      },
+      "MediawikiMajorRelease": {
+         "Type": "String",
+         "Default": 1
+      },
+      "MediawikiMinorRelease": {
+         "Type": "String",
+         "Default": 28
+      },
+      "SiteTitle": {
+         "Type": "String"
+      },
+      "SiteURL": {
+         "Type": "String",
+         "Default": "https://www.example.com"
+      },
+      "VirtaulServerNames": {
+         "Type": "String",
+         "Description": "Load Balancer Alias",
+         "Default": "example.com www.example.com"
+      },
+      "ContactEmail": {
+         "Type": "String",
+         "Default": "first.last@domain.com"
+      },
+      "SecretKey": {
+         "Type": "String"
+      },
+      "UpgradeKey": {
+         "Type": "String"
+      },
+      "GoogleAnalyticsAccount": {
+         "Type": "String"
+      },
+      "ReCaptchaSiteKey": {
+         "Type": "String"
+      },
+      "ReCaptchaSecretKey": {
+         "Type": "String"
+      },
+      "Environment": {
+         "Type": "String",
+         "Default": " ",
+         "AllowedValues": [
+            "test",
+            "prd"
+         ]
+      },
+      "S3ContentPath": {
+         "Type": "String",
+         "Default": "bucket-name"
+      }
+   },
+   "Metadata": {
+      "AWS::CloudFormation::Interface": {
+         "ParameterGroups": [
+            {
+               "Label": {
+                  "default": "Ownership"
+               },
+               "Parameters": [
+                  "Owner",
+                  "DeleteAfter"
+               ]
+            },
+            {
+               "Label": {
+                  "default": "Network"
+               },
+               "Parameters": [
+                  "VPC",
+                  "SubnetId",
+                  "SecurityGroup",
+                  "InternalAccessSecurityGroup",
+                  "RemoteSecurityGroup",
+                  "RdsSecurityGroup",
+                  "EfsSecurityGroup",
+                  "LbLanIp"
+               ]
+            },
+            {
+               "Label": {
+                  "default": "Instance"
+               },
+               "Parameters": [
+                  "KeyPairName",
+                  "InstanceType"
+               ]
+            },
+            {
+               "Label": {
+                  "default": "DNS"
+               },
+               "Parameters": [
+                  "RecordName",
+                  "HostedZoneId"
+               ]
+            },
+            {
+               "Label": {
+                  "default": "EFS"
+               },
+               "Parameters": [
+                  "EfsMountPoint",
+                  "EfsFileSystemId"
+               ]
+            },
+            {
+               "Label": {
+                  "default": "Database Config"
+               },
+               "Parameters": [
+                  "DbHost",
+                  "DbName",
+                  "DbUser",
+                  "DbPassword"
+               ]
+            },
+            {
+               "Label": {
+                  "default": "Mediawiki"
+               },
+               "Parameters": [
+                  "MediawikiMajorRelease",
+                  "MediawikiMinorRelease",
+                  "SiteTitle",
+                  "SiteURL",
+                  "VirtaulServerNames",
+                  "ContactEmail",
+                  "SecretKey",
+                  "UpgradeKey",
+                  "GoogleAnalyticsAccount"
+               ]
+            },
+            {
+               "Label": {
+                  "default": "Deployment"
+               },
+               "Parameters": [
+                  "Environment",
+                  "S3ContentPath"
+               ]
+            }
+         ],
+         "ParameterLabels": {
+            "Owner": {
+               "default": "Team or Individual Owner"
+            },
+            "DeleteAfter": {
+               "default": "Delete After Date"
+            },
+            "VPC": {
+               "default": "VPC ID"
+            },
+            "SubnetId": {
+               "default": "Subnet ID"
+            },
+            "InternalAccessSecurityGroup": {
+               "default": "Internal Access Security Group"
+            },
+            "RemoteSecurityGroup": {
+               "default": "Remote Security Group"
+            },
+            "RdsSecurityGroup": {
+               "default": "RDS Security Group"
+            },
+            "EfsSecurityGroup": {
+               "default": "EFS Security Group"
+            },
+            "LbLanIp": {
+               "default": "Load Balancer LAN IP"
+            },
+            "KeyPairName": {
+               "default": "EC2 Key Pair Name"
+            },
+            "InstanceType": {
+               "default": "Instance Type"
+            },
+            "RecordName": {
+               "default": "Record Name"
+            },
+            "HostedZoneId": {
+               "default": "Hosted Zone ID"
+            },
+            "EfsMountPoint": {
+               "default": "EFS Mount Point"
+            },
+            "EfsFileSystemId": {
+               "default": "EFS File System Id"
+            },
+            "DbHost": {
+               "default": "Database Host"
+            },
+            "DbName": {
+               "default": "Database Name"
+            },
+            "DbUser": {
+               "default": "Database User"
+            },
+            "DbPassword": {
+               "default": "Database Password"
+            },
+            "MediawikiMajorRelease": {
+               "default": "Mediawiki Major Release"
+            },
+            "MediawikiMinorRelease": {
+               "default": "Mediawiki Minor Release"
+            },
+            "SiteTitle": {
+               "default": "Site Title"
+            },
+            "SiteURL": {
+               "default": "Site URL"
+            },
+            "VirtaulServerNames": {
+               "default": "Virtual Server Names"
+            },
+            "ContactEmail": {
+               "default": "Contact Email"
+            },
+            "SecretKey": {
+               "default": "Secret Key"
+            },
+            "UpgradeKey": {
+               "default": "Upgrade Key"
+            },
+            "GoogleAnalyticsAccount": {
+               "default": "Google Analytics Account"
+            },
+            "Environment": {
+               "default": "Environment"
+            },
+            "S3ContentPath": {
+               "default": "S3 Deploy Bucket Name"
+            }
+         }
+      }
+   },
+   "Mappings": {
+      "RegionMap": {
+         "us-east-1": {
+            "InstanceStore": "ami-de3860c9",
+            "EBS": "ami-b73b63a0"
+         },
+         "us-west-2": {
+            "InstanceStore": "ami-44c36524",
+            "EBS": "ami-5ec1673e"
+         },
+         "us-west-1": {
+            "InstanceStore": "ami-34e9a254",
+            "EBS": "ami-23e8a343"
+         },
+         "eu-west-1": {
+            "InstanceStore": "ami-d998d3aa",
+            "EBS": "ami-9398d3e0"
+         },
+         "eu-central-1": {
+            "InstanceStore": "ami-0f639b60",
+            "EBS": "ami-f9619996"
+         },
+         "ap-southeast-1": {
+            "InstanceStore": "ami-7a54f519",
+            "EBS": "ami-b953f2da"
+         },
+         "ap-northeast-1": {
+            "InstanceStore": "ami-0a12b16b",
+            "EBS": "ami-0c11b26d"
+         },
+         "ap-northeast-2": {
+            "InstanceStore": "ami-ba35e1d4",
+            "EBS": "ami-983ce8f6"
+         },
+         "ap-southeast-2": {
+            "InstanceStore": "ami-41754922",
+            "EBS": "ami-db704cb8"
+         },
+         "sa-east-1": {
+            "InstanceStore": "ami-59bd2135",
+            "EBS": "ami-97831ffb"
+         },
+         "us-gov-west-1": {
+            "InstanceStore": "ami-e0b10981",
+            "EBS": "ami-7cb1091d"
+         },
+         "cn-north-1": {
+            "InstanceStore": "ami-81eb3fec",
+            "EBS": "ami-7c15c111"
+         }
+      }
+   },
+   "Resources": {
+      "IamRole": {
+         "Type": "AWS::IAM::Role",
+         "Properties": {
+            "RoleName": sample-role-ax2dat5j,
+            "ManagedPolicyArns": [
+               "arn:aws:iam::aws:policy/ReadOnlyAccess"
+            ],
+            "AssumeRolePolicyDocument": {
+               "Statement": [
+                  {
+                     "Effect": "Allow",
+                     "Principal": {
+                        "Service": [
+                           "ec2.amazonaws.com"
+                        ]
+                     },
+                     "Action": [
+                        "sts:AssumeRole"
+                     ]
+                  }
+               ]
+            },
+            "Path": "/"
+         }
+      },
+      "IamPolicies": {
+         "Type": "AWS::IAM::Policy",
+         "DependsOn": "IamRole",
+         "Properties": {
+            "PolicyName": null,
+            "Roles": [
+               null
+            ],
+            "PolicyDocument": {
+               "Version": "2012-10-17",
+               "Statement": [
+                  {
+                     "Effect": "Allow",
+                     "Action": [
+                        "s3:*"
+                     ],
+                     "Resource": "*"
+                  },
+                  {
+                     "Effect": "Allow",
+                     "Action": [
+                        "route53:ChangeResourceRecordSets",
+                        "route53:Get*",
+                        "route53:List*"
+                     ],
+                     "Resource": "*"
+                  },
+                  {
+                     "Effect": "Allow",
+                     "Action": [
+                        "cloudwatch:PutMetricData"
+                     ],
+                     "Resource": "*"
+                  },
+                  {
+                     "Effect": "Allow",
+                     "Action": [
+                        "logs:PutLogEvents",
+                        "logs:CreateLogStream",
+                        "logs:DescribeLogStreams",
+                        "logs:CreateLogGroup"
+                     ],
+                     "Resource": {
+                        "Fn::Join": [
+                           "",
+                           "- 'arn:aws:logs:'\n- !Ref AWS::Region\n- \":\"\n- !Ref AWS::AccountId\n- \":log-group:\"\n- !Ref CloudWatchLogsGroup\n- \":log-stream:*\""
+                        ]
+                     }
+                  }
+               ]
+            }
+         }
+      },
+      "IamInstanceProfile": {
+         "Type": "AWS::IAM::InstanceProfile",
+         "DependsOn": "IamRole",
+         "Properties": {
+            "Path": "/",
+            "Roles": [
+               null
+            ]
+         }
+      },
+      "SecurityGroup": {
+         "Type": "AWS::EC2::SecurityGroup",
+         "Properties": {
+            "GroupDescription": "Allow Web Traffic to Instance",
+            "VpcId": null,
+            "SecurityGroupIngress": [
+               {
+                  "IpProtocol": "tcp",
+                  "FromPort": 80,
+                  "ToPort": 80,
+                  "CidrIp": "0.0.0.0/0"
+               },
+               {
+                  "IpProtocol": "tcp",
+                  "FromPort": 443,
+                  "ToPort": 443,
+                  "CidrIp": "0.0.0.0/0"
+               }
+            ],
+            "SecurityGroupEgress": [
+               {
+                  "IpProtocol": "-1",
+                  "FromPort": "-1",
+                  "ToPort": "-1",
+                  "CidrIp": "0.0.0.0/0"
+               }
+            ],
+            "Tags": [
+               {
+                  "Key": "Name",
+                  "Value": null
+               },
+               {
+                  "Key": "Owner",
+                  "Value": null
+               },
+               {
+                  "Key": "DeleteAfter",
+                  "Value": null
+               }
+            ]
+         }
+      },
+      "EC2Instance": {
+         "Type": "AWS::EC2::Instance",
+         "DependsOn": [
+            "SecurityGroup",
+            "IamInstanceProfile"
+         ],
+         "Properties": {
+            "IamInstanceProfile": null,
+            "InstanceType": null,
+            "KeyName": null,
+            "SubnetId": null,
+            "SecurityGroupIds": [
+               null,
+               null,
+               null,
+               null,
+               null
+            ],
+            "ImageId": null,
+            "Monitoring": false,
+            "BlockDeviceMappings": [
+               {
+                  "DeviceName": "/dev/xvda",
+                  "Ebs": {
+                     "DeleteOnTermination": true,
+                     "VolumeType": "gp2",
+                     "VolumeSize": 8
+                  }
+               }
+            ],
+            "Tags": [
+               {
+                  "Key": "Name",
+                  "Value": null
+               },
+               {
+                  "Key": "Owner",
+                  "Value": null
+               },
+               {
+                  "Key": "DeleteAfter",
+                  "Value": null
+               }
+            ],
+            "UserData": {
+               "Fn::Base64": null
+            }
+         },
+         "Metadata": {
+            "AWS::CloudFormation::Init": {
+               "configSets": {
+                  "ec2_setup": [
+                     "config_cfn",
+                     "install_packages",
+                     "install_mediawiki",
+                     "setup_uploads_efs",
+                     "set_backlog_sockets",
+                     "install_mediawiki_extensions",
+                     "mediawiki_customizations",
+                     "config_mediawiki",
+                     "config_php_fpm",
+                     "start_services",
+                     "deploy_dns_update_script",
+                     "run_update_dns",
+                     "install_yum_cron",
+                     "setup_yum_cron",
+                     "warm_ebs"
+                  ]
+               },
+               "config_cfn": {
+                  "files": {
+                     "/etc/cfn/cfn-hup.conf": {
+                        "content": null,
+                        "mode": "000400",
+                        "owner": "root",
+                        "group": "root"
+                     },
+                     "/etc/cfn/hooks.d/cfn-auto-reloader.conf": {
+                        "content": null
+                     }
+                  },
+                  "services": {
+                     "sysvinit": {
+                        "cfn-hup": {
+                           "enabled": true,
+                           "ensureRunning": true,
+                           "files": [
+                              "/etc/cfn/cfn-hup.conf",
+                              "/etc/cfn/hooks.d/cfn-auto-reloader.conf"
+                           ]
+                        }
+                     }
+                  }
+               },
+               "install_packages": {
+                  "commands": {
+                     "01_install_nginx": {
+                        "command": "yum install -y git vim htop mlocate nginx mysql56 php70-fpm php70-mysqlnd php70-gd php70-mbstring php70-mcrypt php70-cli php70-common php70-enchant php70-gd php70-intl php70-jsonc php70-mbstring php70-mcrypt php70-mysqlnd php70-pdo php70-pecl-apcu php70-pecl-http php70-pecl-imagick php70-pecl-raphf php70-process php70-xml apr apr-util enchant ImageMagick json-c mysql56 nfs-utils openssl openssl-devel perl-core perl-CPAN perl-Crypt-SSLeay perl-DateTime perl-libwww-perl perl-Sys-Syslog"
+                     }
+                  }
+               },
+               "install_mediawiki": {
+                  "commands": {
+                     "01_create_www": {
+                        "command": "mkdir -p /var/www/html"
+                     },
+                     "02_download_mediawiki": {
+                        "cwd": "/var/www/html",
+                        "command": null
+                     },
+                     "03_rename_dir": {
+                        "cwd": "/var/www/html",
+                        "command": "mv core mediawiki"
+                     },
+                     "04_chmod_site": {
+                        "cwd": "/var/www/html",
+                        "command": "chown -R nginx:nginx mediawiki"
+                     }
+                  }
+               },
+               "setup_uploads_efs": {
+                  "commands": {
+                     "01_make_mount_dir": {
+                        "cwd": "/var/www/html",
+                        "command": null
+                     },
+                     "02_update_fstab": {
+                        "cwd": "/var/www/html",
+                        "command": null
+                     },
+                     "03_mount_efs": {
+                        "command": "mount -a -t nfs4"
+                     }
+                  }
+               },
+               "set_backlog_sockets": {
+                  "commands": {
+                     "01_set_somaxconn_in_memory": {
+                        "cwd": "/var/www/html",
+                        "command": "sysctl -w net.core.somaxconn=1024"
+                     },
+                     "02_set_somaxcoon_for_reboot": {
+                        "cwd": "/var/www/html",
+                        "command": "echo 'net.core.somaxconn = 1024' >> /etc/sysctl.conf"
+                     },
+                     "03_set_syncookies_in_memory": {
+                        "cwd": "/var/www/html",
+                        "command": "sysctl -w net.ipv4.tcp_syncookies=4096"
+                     },
+                     "04_set_syncookies_for_reboot": {
+                        "cwd": "/var/www/html",
+                        "command": "echo 'net.ipv4.tcp_syncookies = 4096' >> /etc/sysctl.conf"
+                     }
+                  }
+               },
+               "install_mediawiki_extensions": {
+                  "commands": {
+                     "001_MobileFrontend": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "002_SyntaxHighlight_GeSHi": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "003_UploadWizard": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "004_News": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "005_MultiBoilerplate": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "006_ReplaceText": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "007_YouTube": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "008_AntiBot": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "009_AntiSpoof": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "010_SimpleAntiSpam": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "011_SpamBlacklist": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "012_googleAnalytics": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "013_Mantle": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "015_Cite": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "016_ConfirmEdit": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "017_Gadgets": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "018_ImageMap": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "019_InputBox": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "020_Interwiki": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "021_LocalisationUpdate": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "022_Nuke": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "023_ParserFunctions": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "024_PdfHandler": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "025_Poem": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "026_Renameuser": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "029_TitleBlacklist": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "030_WikiEditor": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "030b_Scribunto": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "030c_AutoSitemap": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "031_mkdir_HideNamespace": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": "mkdir HideNamespace"
+                     },
+                     "032_HideNamespace": {
+                        "cwd": "/var/www/html/mediawiki/extensions",
+                        "command": null
+                     },
+                     "033_chmod_extensions": {
+                        "cwd": "/var/www/html/mediawiki",
+                        "command": "chown -R nginx:nginx extensions"
+                     },
+                     "034_vendor_clone_insteadof_composer": {
+                        "cwd": "/var/www/html/mediawiki",
+                        "command": null
+                     },
+                     "035_chmod_vendor": {
+                        "cwd": "/var/www/html/mediawiki",
+                        "command": "chown -R nginx:nginx vendor"
+                     }
+                  }
+               },
+               "mediawiki_customizations": {
+                  "commands": {
+                     "001_download_vector_skin": {
+                        "cwd": "/var/www/html/mediawiki/skins",
+                        "command": null
+                     },
+                     "002_chmod_vector": {
+                        "cwd": "/var/www/html/mediawiki/skins",
+                        "command": "chown -R nginx:nginx Vector"
+                     },
+                     "003_desktop_logo": {
+                        "cwd": "/var/www/html/mediawiki/images",
+                        "command": null
+                     },
+                     "004_mobile_logo": {
+                        "cwd": "/var/www/html/mediawiki/images",
+                        "command": null
+                     },
+                     "005_chmod_logos": {
+                        "cwd": "/var/www/html/mediawiki/images",
+                        "command": "chown -R nginx:nginx *.png"
+                     },
+                     "006_favicon": {
+                        "cwd": "/var/www/html/mediawiki",
+                        "command": null
+                     },
+                     "007_chmod_favicon": {
+                        "cwd": "/var/www/html/mediawiki",
+                        "command": "chown nginx:nginx favicon.ico"
+                     },
+                     "008_adsense_vector": {
+                        "cwd": "/var/www/html/mediawiki/skins/Vector",
+                        "command": null
+                     },
+                     "009_chmod_vectortemplate": {
+                        "cwd": "/var/www/html/mediawiki/skins/Vector",
+                        "command": "chown nginx:nginx VectorTemplate.php"
+                     },
+                     "010_adsense_mobilefrontend": {
+                        "cwd": "/var/www/html/mediawiki/extensions/MobileFrontend/includes/skins",
+                        "command": null
+                     },
+                     "011_chmod_mobilefrontend": {
+                        "cwd": "/var/www/html/mediawiki/extensions/MobileFrontend/includes/skins",
+                        "command": "chown nginx:nginx MinervaTemplate.php"
+                     }
+                  }
+               },
+               "config_mediawiki": {
+                  "files": {
+                     "/etc/nginx/conf.d/mediawiki.conf": {
+                        "content": null
+                     },
+                     "/var/www/html/mediawiki/robots.txt": {
+                        "mode": "000644",
+                        "owner": "nginx",
+                        "group": "nginx",
+                        "encoding": "plain",
+                        "content": null
+                     },
+                     "/var/www/html/mediawiki/LocalSettings.php": {
+                        "mode": "000444",
+                        "owner": "nginx",
+                        "group": "nginx",
+                        "encoding": "plain",
+                        "content": null
+                     }
+                  }
+               },
+               "config_php_fpm": {
+                  "commands": {
+                     "01_replace_apache_with_nginx_user": {
+                        "command": "sed -i 's/apache/nginx/g' /etc/php-fpm-7.0.d/www.conf"
+                     },
+                     "02_set_ownership_logs_dir": {
+                        "command": "chown -R nginx:nginx /var/log/php-fpm"
+                     },
+                     "03_set_ownership_session_dir": {
+                        "command": "chown -R root:nginx /var/lib/php/7.0/"
+                     }
+                  }
+               },
+               "start_services": {
+                  "commands": {
+                     "01_start_php_fpm": {
+                        "command": "service php-fpm-7.0 restart"
+                     },
+                     "02_start_nginx": {
+                        "command": "service nginx restart"
+                     },
+                     "03_onboot_php_fpm": {
+                        "command": "chkconfig nginx on"
+                     },
+                     "04_onboot_nginx": {
+                        "command": "chkconfig php-fpm-7.0 on"
+                     }
+                  }
+               },
+               "deploy_dns_update_script": {
+                  "files": {
+                     "/usr/sbin/update-dns": {
+                        "mode": "000755",
+                        "content": null
+                     }
+                  }
+               },
+               "run_update_dns": {
+                  "commands": {
+                     "01_run_script": {
+                        "command": "/usr/sbin/update-dns"
+                     }
+                  }
+               },
+               "install_yum_cron": {
+                  "commands": {
+                     "01_install_yum_cron": {
+                        "command": "yum install -y yum-plugin-security yum-cron"
+                     }
+                  }
+               },
+               "setup_yum_cron": {
+                  "files": {
+                     "/etc/yum/yum-cron.conf": {
+                        "mode": "000644",
+                        "content": null
+                     }
+                  },
+                  "commands": {
+                     "01_enable_onboot": {
+                        "command": "chkconfig yum-cron on"
+                     },
+                     "02_start_yum_cron": {
+                        "command": "service yum-cron restart"
+                     }
+                  }
+               },
+               "warm_ebs": {
+                  "commands": {
+                     "01_warm_ebs": {
+                        "command": "echo 'ACTION: Performing EBS Warming' && dd if=/dev/xvda of=/dev/xvda conv=notrunc bs=1M status=progress"
+                     }
+                  }
+               }
+            }
+         },
+         "CreationPolicy": {
+            "ResourceSignal": {
+               "Count": 1,
+               "Timeout": "PT30M"
+            }
+         }
+      }
+   },
+   "Outputs": {
+      "Owner": {
+         "Description": "Team or Individual that Owns this Formation.",
+         "Value": null
+      },
+      "DeleteAfter": {
+         "Description": "It is ok to delete the Formation after this date.",
+         "Value": null
+      },
+      "VPC": {
+         "Value": null
+      },
+      "SubnetId": {
+         "Value": null
+      },
+      "SecurityGroup": {
+         "Value": null
+      },
+      "InternalAccessSecurityGroup": {
+         "Value": null
+      },
+      "RemoteSecurityGroup": {
+         "Value": null
+      },
+      "RdsSecurityGroup": {
+         "Value": null
+      },
+      "EfsSecurityGroup": {
+         "Value": null
+      },
+      "InstanceURL": {
+         "Value": null
+      },
+      "DnsURL": {
+         "Value": null
+      },
+      "AMI": {
+         "Description": "AMI Used.",
+         "Value": null
+      },
+      "InstanceType": {
+         "Description": "Instance Type Used.",
+         "Value": null
+      },
+      "KeyPairName": {
+         "Description": "Key Pair Name Used.",
+         "Value": null
+      },
+      "IAMRole": {
+         "Description": "IAM Instance Profile Role Created.",
+         "Value": null
+      },
+      "RecordName": {
+         "Description": "Record Name.",
+         "Value": null
+      },
+      "HostedZoneId": {
+         "Description": "Hosted Zone ID.",
+         "Value": null
+      }
+   }
+}
